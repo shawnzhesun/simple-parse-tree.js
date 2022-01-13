@@ -1,5 +1,5 @@
 {
-  "name": "SimpleParserTree.js",
+  "name": "simple-parser-tree.js",
   "main": "index.js",
   "dependencies": {
     "antlr4": "^4.9.3"
