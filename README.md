@@ -1,6 +1,6 @@
-# Simple Parser Tree in Node.js
+# Simple Parse Tree in Node.js
 
-Demo project for demonstrating parsing the JavaScript code into a Simple Parser Tree using ANTLR 4.
+Demo project for demonstrating parsing the JavaScript code into a Simple Parse Tree using ANTLR 4.
 
 ## Installation
 - Clone this repository
