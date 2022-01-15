@@ -3,20 +3,18 @@ import JavaScriptLexer from './lib/JavaScriptLexer.js';
 import JavaScriptParser from './lib/JavaScriptParser.js';
 
 // The input code snippet for testing
-// const input = `
-//   function mySum(init) {
-//     var foo = { bar: init };
-//     var sum = 0;
-//     if (foo.bar === 42) {
-//       for (let i = 0; i < foo.bar; i++) {
-//         sum++;
-//       }
-//     }
-//     return sum;
-//   }
-// `;
-
-const input = `var a = 1;`;
+const input = `
+  function mySum(init) {
+    var foo = { bar: init };
+    var sum = 0;
+    if (foo.bar === 42) {
+      for (let i = 0; i < foo.bar; i++) {
+        sum++;
+      }
+    }
+    return sum;
+  }
+`;
 
 // Initializations
 const chars = new antlr4.InputStream(input);
@@ -28,7 +26,6 @@ const tree = parser.program();
 
 const stringTree = tree.toStringTree(parser.ruleNames);
 console.log(stringTree);
-// console.log(JSON.stringify(makeTree(stringTree), null, ' '));
 console.log(treeToText(makeTree(stringTree)));
 
 
@@ -42,11 +39,10 @@ console.log(treeToText(makeTree(stringTree)));
  *          having its value and children nodes.
  */
 function makeTree(input) {
+  let root;
   let stack = [];
-  let index = 0;
-  let root = { id: index++, value: 'root', children: []};
-  stack.push(root);
-  let currentNode = root;
+  let id = 0;
+  let currentNode;
   for(let i = 0; i < input.length; i++) {
     if ((input.charAt(i) === '(' || input.charAt(i) === ')' ) && input.charAt(i - 1) == ' ' && input.charAt(i + 1) == ' ') {
       if (currentNode)
@@ -55,14 +51,11 @@ function makeTree(input) {
     }
     switch (input.charAt(i)) {
       case '(': {
-        if (currentNode && currentNode.value === ' ') {
-          // Bypass whitespaces
-          currentNode.value = '';
-          continue;
-        }
-        const newNode = { id: index++, value: '', children: [] };
+        const newNode = { id: id++, value: '', children: [] };
+        if (id === 1)
+          root = newNode;
         if (currentNode) {
-          currentNode.children.push(newNode);
+            currentNode.children.push(newNode);
         }
         stack.push(newNode);
         currentNode = newNode;
@@ -71,19 +64,7 @@ function makeTree(input) {
       case ')': {
         stack.pop();
         if (stack.length > 0) {
-          let parent = stack[stack.length - 1];
-          if (input.charAt(i + 1) !== ')') {
-            const newNode = { id: index++, value: '', children: [] };
-            parent.children.push(newNode);
-            currentNode = newNode;
-          } else {
-            currentNode = parent;
-          }
-        } else if (i !== input.length - 1) {
-          // At the last node, parent pointing to root
-          const newNode = { id: index++, value: '', children: [] };
-          currentNode.children.push(newNode);
-          currentNode = newNode;
+          currentNode = stack[stack.length - 1];
         }
         break;
       }
