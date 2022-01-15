@@ -3,9 +3,20 @@ import JavaScriptLexer from './lib/JavaScriptLexer.js';
 import JavaScriptParser from './lib/JavaScriptParser.js';
 
 // The input code snippet for testing
-const input = `
-  var foo = { bar: 42 };
-`;
+// const input = `
+//   function mySum(init) {
+//     var foo = { bar: init };
+//     var sum = 0;
+//     if (foo.bar === 42) {
+//       for (let i = 0; i < foo.bar; i++) {
+//         sum++;
+//       }
+//     }
+//     return sum;
+//   }
+// `;
+
+const input = `var a = 1;`;
 
 // Initializations
 const chars = new antlr4.InputStream(input);
@@ -16,7 +27,8 @@ parser.buildParseTrees = true;
 const tree = parser.program();
 
 const stringTree = tree.toStringTree(parser.ruleNames);
-// console.log(stringTree);
+console.log(stringTree);
+// console.log(JSON.stringify(makeTree(stringTree), null, ' '));
 console.log(treeToText(makeTree(stringTree)));
 
 
@@ -30,24 +42,49 @@ console.log(treeToText(makeTree(stringTree)));
  *          having its value and children nodes.
  */
 function makeTree(input) {
-  let res = [];
   let stack = [];
-  let id = 0;
-  let currentNode;
+  let index = 0;
+  let root = { id: index++, value: 'root', children: []};
+  stack.push(root);
+  let currentNode = root;
   for(let i = 0; i < input.length; i++) {
+    if ((input.charAt(i) === '(' || input.charAt(i) === ')' ) && input.charAt(i - 1) == ' ' && input.charAt(i + 1) == ' ') {
+      if (currentNode)
+          currentNode.value = currentNode.value + input.charAt(i);
+      continue;
+    }
     switch (input.charAt(i)) {
       case '(': {
-        const newNode = { id: id++, value: '', children: [] };
-        if (stack.length > 0 && currentNode)
+        if (currentNode && currentNode.value === ' ') {
+          // Bypass whitespaces
+          currentNode.value = '';
+          continue;
+        }
+        const newNode = { id: index++, value: '', children: [] };
+        if (currentNode) {
           currentNode.children.push(newNode);
+        }
         stack.push(newNode);
         currentNode = newNode;
         break;
       }
       case ')': {
-        res.push(stack.pop());
-        if (stack.length > 0)
-          currentNode = stack[stack.length - 1];
+        stack.pop();
+        if (stack.length > 0) {
+          let parent = stack[stack.length - 1];
+          if (input.charAt(i + 1) !== ')') {
+            const newNode = { id: index++, value: '', children: [] };
+            parent.children.push(newNode);
+            currentNode = newNode;
+          } else {
+            currentNode = parent;
+          }
+        } else if (i !== input.length - 1) {
+          // At the last node, parent pointing to root
+          const newNode = { id: index++, value: '', children: [] };
+          currentNode.children.push(newNode);
+          currentNode = newNode;
+        }
         break;
       }
       default: {
@@ -57,19 +94,19 @@ function makeTree(input) {
       }
     }
   }
-  return res.filter(n => n.id === 0);
+  return root;
 }
 
 /**
  * Util functions to pretty-print the tree structure.
- * @param {object} tree The tree structure represented in JSON
+ * @param {object} treeRoot The root of the tree structure
  * @returns Pretty-printed tree structure
  */
-function treeToText(tree) {
-  const recur = ({ value, children }) => value +
+function treeToText(treeRoot) {
+  const recur = ({ id, value, children }) => id + ' ' + value +
       (children?.length ? '\n' + children.map(recur).map((text, i, {length}) =>
           i < length-1 ? '├──' + text.replace(/\n/g, '\n│  ')
                        : '└──' + text.replace(/\n/g, '\n   ')
       ).join('\n') : '');
-  return tree.map(recur).join('\n');
+  return [treeRoot].map(recur).join('\n');
 }
