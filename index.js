@@ -1,44 +1,180 @@
 import antlr4 from 'antlr4';
 import JavaScriptLexer from './lib/JavaScriptLexer.js';
 import JavaScriptParser from './lib/JavaScriptParser.js';
+import { JavaScriptSimpleParseTree, JavaScriptSimpleParseTreeNode } from './lib/JavaScriptSimpleParseTree.js';
 
-// The input code snippet for testing
+/* ---- The Input Code -----  */
 const input = `
-  function mySum(init) {
-    var foo = { bar: init };
-    var sum = 0;
-    if (foo.bar === 42) {
-      for (let i = 0; i < foo.bar; i++) {
-        sum++;
-      }
-    }
-    return sum;
+  var a = new Person();
+  for (let i = 0; i < 3; i++) {
+    a.age = i;
   }
+  // function mySum(init) {
+  //   var foo = { bar: init };
+  //   var sum = 0;
+  //   if (foo.bar === 42) {
+  //     for (let i = 0; i < foo.bar; i++) {
+  //       sum++;
+  //     }
+  //   }
+  // }
 `;
 
-// Initializations
+/* ---- Initializations -----  */
 const chars = new antlr4.InputStream(input);
 const lexer = new JavaScriptLexer(chars);
 const tokens = new antlr4.CommonTokenStream(lexer);
 const parser = new JavaScriptParser(tokens);
+const ruleNames = parser.ruleNames;
+const symbolicNames = parser.symbolicNames;
 parser.buildParseTrees = true;
 const tree = parser.program();
 
-const stringTree = tree.toStringTree(parser.ruleNames);
-console.log(stringTree);
-console.log(treeToText(makeTree(stringTree)));
+/* ---- Debugging Logs -----  */
 
+// print the LISP stringified tree
+// const stringTree = tree.toStringTree(ruleNames);
+// console.log(stringTree);
 
+// print all leaf nodes
+// console.log(treeLeafNodes(tree));
+
+// print the string tree
+// console.log(printStringTree(stringTree));
+
+console.log(JSON.stringify(constructSimpleParseTree(tree, tokens), null, ' ')); // print the constructed simple parse tree
+
+/* ---- Tree Construction Functions -----  */
+
+/**
+ * Construct a JavaScriptSimpleParseTree from an ANTLR syntax tree.
+ */
+function constructSimpleParseTree(tree, t) {
+  const leafNodeRuleNames = [
+    'identifier',
+    'literal',
+    'arrayLiteral',
+    'objectLiteral',
+    'templateStringLiteral',
+    'numericLiteral',
+    'bigintLiteral',
+  ];
+
+  const LeafNodeSymbolicNames = [
+    'RegularExpressionLiteral',
+    'NullLiteral',
+    'BooleanLiteral',
+    'DecimalLiteral',
+    'HexIntegerLiteral',
+    'OctalIntegerLiteral',
+    'OctalIntegerLiteral2',
+    'BinaryIntegerLiteral',
+    'BigHexIntegerLiteral',
+    'BigOctalIntegerLiteral',
+    'BigBinaryIntegerLiteral',
+    'BigDecimalIntegerLiteral',
+    'Identifier',
+    'StringLiteral',
+  ];
+
+  const leadingOrTrailingText = (tokenSymbol, leading) => {
+    if (!tokenSymbol) return;
+    const tokenList = leading ? tokens.getHiddenTokensToLeft(tokenSymbol.tokenIndex, 1)
+                              : tokens.getHiddenTokensToRight(tokenSymbol.tokenIndex, 1);
+    if (!tokenList || tokenList.length === 0) return;
+    let tokenStr = '';
+    tokenList.forEach((t) => {
+      tokenStr += t.text;
+    });
+    return tokenStr;
+  };
+
+  const traverseTree = (treeNode, depth = 0, t) => {
+    let childCount = treeNode.getChildCount();
+    if (childCount === 0) {
+      return null;
+    }
+    const simpleParseTree = new JavaScriptSimpleParseTree();
+    let treeLabel = '';
+    for (let i = 0; i < childCount; i++) {
+      const subTree = treeNode.getChild(i);
+      if (subTree.constructor.name === 'TerminalNodeImpl') {
+        let treeText = subTree.getText();
+        if (treeText !== '<EOF>') {
+          const ruleName = subTree.getRuleContext ? subTree.getRuleContext().ruleIndex : null;
+          const tokenSymbol = subTree.getSymbol ? subTree.getSymbol() : null;
+          let isLeaf = false;
+          if ((ruleName && leafNodeRuleNames.includes(ruleNames[ruleName]))
+            || LeafNodeSymbolicNames.includes(symbolicNames[tokenSymbol.type])) {
+            isLeaf = true;
+            treeLabel = treeLabel + '#';
+          } else {
+            isLeaf = false;
+            treeLabel = treeLabel + treeText;
+          }
+          let newNode = new JavaScriptSimpleParseTreeNode({
+            token: treeText,
+            isLeaf: isLeaf,
+            leading: leadingOrTrailingText(tokenSymbol, true),
+            trailing: leadingOrTrailingText(tokenSymbol, false),
+          });
+          simpleParseTree.children.push(newNode);
+        }
+      } else {
+        const traversedSubTree = traverseTree(subTree, depth + 1, t);
+        if (traversedSubTree && traversedSubTree.label) {
+          if (traversedSubTree.children && traversedSubTree.children.length === 1) {
+            simpleParseTree.children.push(traversedSubTree.children[0]);
+            treeLabel = treeLabel + traversedSubTree.label;
+          } else {
+            simpleParseTree.children.push(traversedSubTree);
+            treeLabel = treeLabel + '#';
+          }
+        }
+      }
+    }
+
+    simpleParseTree.label = treeLabel;
+    return simpleParseTree;
+  };
+
+  return traverseTree(tree, t);
+}
 
 /* ---- Util Functions -----  */
 
 /**
+ * Util function to return all leaf nodes of an ANTLR parse tree.
+ *
+ * @param {object} tree The parse tree
+ * @param {int} depth The current depth of the travesal
+ * @param {Array} result The result array containing all leaf nodes
+ * @returns The result array
+ */
+function treeLeafNodes(tree, depth, result) {
+  if (!depth)
+    depth = 0;
+  if (!result)
+    result = [];
+  for (let i = 0; i < tree.getChildCount(); i++) {
+    const child = tree.getChild(i);
+    if (child.constructor.name === 'TerminalNodeImpl') {
+      result.push(child.getText());
+    } else {
+      treeLeafNodes(child, depth + 1, result);
+    }
+  }
+  return result;
+}
+
+/**
+ * @private
  * Consutrct a JSON tree structure from the LISP stringified tree.
  * @param {string} input The stringified tree in the LISP format
  * @returns The tree structure represented in JSON format, with each node
  *          having its value and children nodes.
  */
-function makeTree(input) {
+function makeTreeFromString(input) {
   let root;
   let stack = [];
   let id = 0;
@@ -79,15 +215,15 @@ function makeTree(input) {
 }
 
 /**
- * Util functions to pretty-print the tree structure.
- * @param {object} treeRoot The root of the tree structure
+ * Util functions to pretty-print the ANTLR tree structure.
+ * @param {object} tree The stringified tree structure
  * @returns Pretty-printed tree structure
  */
-function treeToText(treeRoot) {
+function printStringTree(tree) {
   const recur = ({ id, value, children }) => id + ' ' + value +
       (children?.length ? '\n' + children.map(recur).map((text, i, {length}) =>
           i < length-1 ? '├──' + text.replace(/\n/g, '\n│  ')
                        : '└──' + text.replace(/\n/g, '\n   ')
       ).join('\n') : '');
-  return [treeRoot].map(recur).join('\n');
+  return [makeTreeFromString(tree)].map(recur).join('\n');
 }
