@@ -1,23 +1,12 @@
 import antlr4 from 'antlr4';
 import JavaScriptLexer from './lib/JavaScriptLexer.js';
 import JavaScriptParser from './lib/JavaScriptParser.js';
-import { JavaScriptSimpleParseTree, JavaScriptSimpleParseTreeNode } from './lib/JavaScriptSimpleParseTree.js';
+import { JavaScriptSimpleParseTree } from './lib/JavaScriptSimpleParseTree.js';
+import { JavaScriptSimpleParseTreeNode } from './lib/JavaScriptSimpleParseTreeNode.js';
 
 /* ---- The Input Code -----  */
 const input = `
-  var a = new Person();
-  for (let i = 0; i < 3; i++) {
-    a.age = i;
-  }
-  // function mySum(init) {
-  //   var foo = { bar: init };
-  //   var sum = 0;
-  //   if (foo.bar === 42) {
-  //     for (let i = 0; i < foo.bar; i++) {
-  //       sum++;
-  //     }
-  //   }
-  // }
+if (x > 0) z = 3;
 `;
 
 /* ---- Initializations -----  */
@@ -42,7 +31,12 @@ const tree = parser.program();
 // print the string tree
 // console.log(printStringTree(stringTree));
 
-console.log(JSON.stringify(constructSimpleParseTree(tree, tokens), null, ' ')); // print the constructed simple parse tree
+// print the simple parse tree structure
+const parseTree = constructSimpleParseTree(tree);
+console.log(JSON.stringify(parseTree, null, '   ')); // print the constructed simple parse tree
+
+// print the parse tree as code
+// parseTree.printTreeToCode();
 
 /* ---- Tree Construction Functions -----  */
 
@@ -89,7 +83,7 @@ function constructSimpleParseTree(tree, t) {
     return tokenStr;
   };
 
-  const traverseTree = (treeNode, depth = 0, t) => {
+  const traverseTree = (treeNode, depth = 0) => {
     let childCount = treeNode.getChildCount();
     if (childCount === 0) {
       return null;
@@ -104,24 +98,28 @@ function constructSimpleParseTree(tree, t) {
           const ruleName = subTree.getRuleContext ? subTree.getRuleContext().ruleIndex : null;
           const tokenSymbol = subTree.getSymbol ? subTree.getSymbol() : null;
           let isLeaf = false;
+          let isVariable = false;
           if ((ruleName && leafNodeRuleNames.includes(ruleNames[ruleName]))
             || LeafNodeSymbolicNames.includes(symbolicNames[tokenSymbol.type])) {
             isLeaf = true;
             treeLabel = treeLabel + '#';
+            if (tokenSymbol && symbolicNames[tokenSymbol.type] === 'Identifier')
+              isVariable = true;
           } else {
             isLeaf = false;
             treeLabel = treeLabel + treeText;
           }
-          let newNode = new JavaScriptSimpleParseTreeNode({
+          const newNode = new JavaScriptSimpleParseTreeNode({
             token: treeText,
-            isLeaf: isLeaf,
+            isLeaf: isLeaf ? true : undefined,
+            isVariable: isVariable ? true : undefined,
             leading: leadingOrTrailingText(tokenSymbol, true),
             trailing: leadingOrTrailingText(tokenSymbol, false),
           });
           simpleParseTree.children.push(newNode);
         }
       } else {
-        const traversedSubTree = traverseTree(subTree, depth + 1, t);
+        const traversedSubTree = traverseTree(subTree, depth + 1);
         if (traversedSubTree && traversedSubTree.label) {
           if (traversedSubTree.children && traversedSubTree.children.length === 1) {
             simpleParseTree.children.push(traversedSubTree.children[0]);
