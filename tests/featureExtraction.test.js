@@ -1,7 +1,7 @@
 import SyntaxTreeParser from '../lib/tree/SyntaxTreeParser';
 
 describe('feature extraction', () => {
-  it('extracts features from the tree', () => {
+  test('extracts features from the tree', () => {
     const input = `
       if (x > 0) {
         x = -x;
