@@ -6,7 +6,7 @@ import { JavaScriptSimpleParseTreeNode } from './lib/JavaScriptSimpleParseTreeNo
 
 /* ---- The Input Code -----  */
 const input = `
-if (x > 0) z = 3;
+if (x > 0) x = -x;
 `;
 
 /* ---- Initializations -----  */
@@ -37,6 +37,9 @@ console.log(JSON.stringify(parseTree, null, '   ')); // print the constructed si
 
 // print the parse tree as code
 // parseTree.printTreeToCode();
+
+// print the parse tree as code
+console.log(parseTree.generateFeatures());
 
 /* ---- Tree Construction Functions -----  */
 
