@@ -7,20 +7,29 @@
   "type": "module",
   "scripts": {
     "main": "node index.js",
+    "test": "jest",
     "antlr4": "java -Xmx500M -cp '/usr/local/lib/antlr-4.9.2-complete.jar:$CLASSPATH' org.antlr.v4.Tool -Dlanguage=JavaScript -lib grammars -o lib -visitor -Xexact-output-dir grammars/JavaScriptLexer.g4; java -Xmx500M -cp '/usr/local/lib/antlr-4.9.2-complete.jar:$CLASSPATH' org.antlr.v4.Tool -Dlanguage=JavaScript -lib grammars -o lib -visitor -Xexact-output-dir grammars/JavaScriptParser.g4"
   },
   "devDependencies": {
-    "eslint": "^8.5.0"
+    "@babel/preset-env": "^7.16.11",
+    "babel-jest": "^27.4.6",
+    "eslint": "^8.5.0",
+    "eslint-plugin-jest": "^26.0.0",
+    "jest": "^27.4.7"
   },
   "eslintConfig": {
     "extends": "eslint:recommended",
+    "plugins": [
+      "jest"
+    ],
     "parserOptions": {
       "ecmaVersion": 2020,
       "sourceType": "module"
     },
     "env": {
       "es6": true,
-      "node": true
+      "node": true,
+      "jest/globals": true
     },
     "rules": {
       "semi": [
@@ -53,5 +62,17 @@
         }
       ]
     }
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "modulePaths": [
+      "<rootDir>"
+    ],
+    "transform": {
+      "^.+\\.js?$": "babel-jest"
+    }
+  },
+  "babel": {
+    "presets": ["@babel/preset-env"]
   }
 }
